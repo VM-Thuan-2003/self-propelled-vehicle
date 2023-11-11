@@ -25,10 +25,10 @@ class lane:
         if lines is not None: # to check if any line is detected, lines- 3-d array
             for line in lines:
                 print(line)
-                x1, y1, x2, y2 = line.reshape(4)
+                # x1, y1, x2, y2 = line.reshape(4)
                 # # line- draws a line segment connecting 2 points, color of the line, line density
-                cv2.line(line_image, (x1,y1), (x2,y2), (255,0,0), 10)
-        return line_image
+                # cv2.line(line_image, (x1,y1), (x2,y2), (255,0,0), 10)
+        return image
     def make_coordinates(self, image, line_parameters):
         try:
             slope, intercept = line_parameters
@@ -51,7 +51,7 @@ class lane:
             if slope < 0:
                 left_fit.append((slope, intercept))
             else:
-                right_fit.append((slope, intercept))\
+                right_fit.append((slope, intercept))
 
         if left_fit:
             left_fit_average = np.average(left_fit, axis=0)
@@ -62,7 +62,7 @@ class lane:
             self.right_line = lane.make_coordinates(self, image, right_fit_average)
             # print("right",self.right_line)
         if(self.right_line is not [] and self.left_line is not []):
-            print("done",self.right_line,self.left_line)
+            # print("done",self.right_line,self.left_line)
             return np.array([self.left_line,self.right_line],dtype=object)
         else:
             return np.array([[0,0,0,0],[0,0,0,0]],dtype=object)
