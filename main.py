@@ -5,76 +5,88 @@ class lane:
     def __init__(self,input) -> None:
         self.width = input.width
         self.height = input.height
-        self.left_line = np.array([])
-        self.right_line = np.array([])
     def canny(self,img):
-        canny = cv2.Canny(img, 50, 150)
+        # canny = cv2.Canny(img, 50, 150)
+        canny = cv2.Canny(img, 70, 135) 
         return canny
-    def region_of_interest(self, image):
-        polygons = np.array([[(0,300),(self.width,self.height),(320,110)]])
+    def region_selection(self, image):
         mask = np.zeros_like(image)
-        cv2.fillPoly(mask,polygons,255)
-        masked_image = cv2.bitwise_and(image,mask)
+        if len(image.shape) > 2:
+            channel_count = image.shape[2]
+            ignore_mask_color = (255,) * channel_count
+        else:
+            ignore_mask_color = 255
+        rows, cols = image.shape[:2]
+        bottom_left  = [0, rows * 0.95]
+        top_left     = [300,100]
+        bottom_right = [cols, rows]
+        top_right    = [300,100]
+        vertices = np.array([[bottom_left, top_left, top_right, bottom_right]], dtype=np.int32)
+        cv2.fillPoly(mask, vertices, ignore_mask_color)
+        masked_image = cv2.bitwise_and(image, mask)
         return masked_image
-    def houghLines(self, cropped_canny):
-        return cv2.HoughLinesP(cropped_canny, 2, np.pi/180, 100, np.array([]), minLineLength=40, maxLineGap=5)
-    def addWeighted(self, frame, line_image):
-        return cv2.addWeighted(frame, 0.8, line_image, 1, 1)
-    def display_lines(self, image, lines):
-        line_image = np.zeros_like(image)
-        if lines is not None: # to check if any line is detected, lines- 3-d array
-            for line in lines:
-                print(line)
-                # x1, y1, x2, y2 = line.reshape(4)
-                # # line- draws a line segment connecting 2 points, color of the line, line density
-                # cv2.line(line_image, (x1,y1), (x2,y2), (255,0,0), 10)
-        return image
-    def make_coordinates(self, image, line_parameters):
-        try:
-            slope, intercept = line_parameters
-        except TypeError:
-            slope, intercept = 0.1,0
-        y1 = self.width
-        y2 = int(y1*(3/5))
-        x1 = int((y1-intercept)/slope)
-        x2 = int((y2-intercept)/slope)
-        return np.array([x1,y1,x2,y2])
-    def average_slope_intercept(self, image, lines):
-        left_fit = []  # Define left_fit as an empty list
-        right_fit = []  # Define right_fit as an empty list
+    def hough_transform(self, image):
+        rho = 1
+        theta = np.pi/180
+        threshold = 20
+        minLineLength = 20
+        maxLineGap = 500
+        return cv2.HoughLinesP(image, rho = rho, theta = theta, threshold = threshold,
+                            minLineLength = minLineLength, maxLineGap = maxLineGap)
+    def average_slope_intercept(self, lines):
+        left_lines    = [] #(slope, intercept)
+        left_weights  = [] #(length,)
+        right_lines   = [] #(slope, intercept)
+        right_weights = [] #(length,)
 
         for line in lines:
-            x1, y1, x2, y2 = line.reshape(4)
-            parameters = np.polyfit((x1, x2), (y1, y2), 1)
-            slope = parameters[0]
-            intercept = parameters[1]
-            if slope < 0:
-                left_fit.append((slope, intercept))
-            else:
-                right_fit.append((slope, intercept))
+            for x1, y1, x2, y2 in line:
+                if x1 == x2:
+                    continue
+                slope = (y2 - y1) / (x2 - x1)
+                intercept = y1 - (slope * x1)
+                length = np.sqrt(((y2 - y1) ** 2) + ((x2 - x1) ** 2))
+                if slope < 0:
+                    left_lines.append((slope, intercept))
+                    left_weights.append((length))
+                else:
+                    right_lines.append((slope, intercept))
+                    right_weights.append((length))
+        left_lane  = np.dot(left_weights,  left_lines) / np.sum(left_weights)  if len(left_weights) > 0 else None
+        right_lane = np.dot(right_weights, right_lines) / np.sum(right_weights) if len(right_weights) > 0 else None
+        return left_lane, right_lane
 
-        if left_fit:
-            left_fit_average = np.average(left_fit, axis=0)
-            self.left_line = lane.make_coordinates(self, image, left_fit_average)
-            # print("left",self.left_line)
-        if right_fit:
-            right_fit_average = np.average(right_fit, axis=0)
-            self.right_line = lane.make_coordinates(self, image, right_fit_average)
-            # print("right",self.right_line)
-        if(self.right_line is not [] and self.left_line is not []):
-            # print("done",self.right_line,self.left_line)
-            return np.array([self.left_line,self.right_line],dtype=object)
-        else:
-            return np.array([[0,0,0,0],[0,0,0,0]],dtype=object)
+    def pixel_points(self, y1, y2, line):
+        if line is None:
+            return None
+        slope, intercept = line
+        x1 = int((y1 - intercept)/slope)
+        x2 = int((y2 - intercept)/slope)
+        y1 = int(y1)
+        y2 = int(y2)
+        return ((x1, y1), (x2, y2))
+    
+    def lane_lines(self, image, lines):
+        left_lane, right_lane = lane.average_slope_intercept(self, lines)
+        y1 = image.shape[0]
+        y2 = y1 * 0.6
+        left_line  = lane.pixel_points(self, y1, y2, left_lane)
+        right_line = lane.pixel_points(self, y1, y2, right_lane)
+        return left_line, right_line
+    
+        
+    def draw_lane_lines(self, image, lines, color=[255, 0, 0], thickness=12):
+        line_image = np.zeros_like(image)
+        for line in lines:
+            if line is not None:
+                cv2.line(line_image, *line,  color, thickness)
+        return cv2.addWeighted(image, 1.0, line_image, 1.0, 0.0)
     def detect(self,img):
         img_canny = lane.canny(self,img)
-        img_region_of_interest = lane.region_of_interest(self, img_canny)
-        lines = lane.houghLines(self,img_region_of_interest)
-        averaged_lines = lane.average_slope_intercept(self, img, lines)
-        # print(averaged_lines)
-        line_image = lane.display_lines(self, img, averaged_lines)
-        combo_image = lane.addWeighted(self, img, line_image)
-        return combo_image
+        region = lane.region_selection(self, img_canny)
+        hough = lane.hough_transform(self, region)
+        result = lane.draw_lane_lines(self, img, lane.lane_lines(self, img, hough))
+        return result
 class sign:
     def __init__(self,input) -> None:
         self.width = input.width
@@ -101,11 +113,9 @@ class handle(lane, sign, barrier):
         img = cv2.resize(img, [self.width,self.height])
         cv2.imshow(name,img)
     def preProcess(self,img):
-        alpha=1.1   # alpha: Hệ số độ tương phản (thay đổi alpha để điều chỉnh).
-        beta=20      # beta: Hệ số độ sáng (thay đổi beta để điều chỉnh).
         gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        smooth_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-        # enhanced_image = cv2.convertScaleAbs(smooth_image, alpha=alpha, beta=beta)
+        # smooth_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+        smooth_image = cv2.GaussianBlur(src=gray_image, ksize=(3, 5), sigmaX=0.5)
         return smooth_image
     def handle(self, img):
         preProcess = handle.preProcess(self,img)
