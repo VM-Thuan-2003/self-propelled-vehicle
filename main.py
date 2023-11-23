@@ -65,7 +65,7 @@ class lane:
         y1 = int(y1)
         y2 = int(y2)
         return ((x1, y1), (x2, y2))
-    
+
     def lane_lines(self, image, lines):
         left_lane, right_lane = lane.average_slope_intercept(self, lines)
         y1 = image.shape[0]
@@ -73,8 +73,7 @@ class lane:
         left_line  = lane.pixel_points(self, y1, y2, left_lane)
         right_line = lane.pixel_points(self, y1, y2, right_lane)
         return left_line, right_line
-    
-        
+
     def draw_lane_lines(self, image, lines, color=[255, 0, 0], thickness=12):
         line_image = np.zeros_like(image)
         for line in lines:
