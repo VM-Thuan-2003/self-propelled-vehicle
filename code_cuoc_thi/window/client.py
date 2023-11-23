@@ -166,8 +166,9 @@ if __name__ == "__main__":
             
             #save image
             # image_name = "./img/img_{}.jpg".format(count)
-            # count += 1
-            # cv2.imwrite(image_name, imgage)
+            image_name = "E://WORKPACE//XE_TU_HANH//labelMe//img//img_{}.jpg".format(count)
+            count += 1
+            cv2.imwrite(image_name, imgage)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         
