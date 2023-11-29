@@ -116,11 +116,29 @@ class Lane:
 
         cv2.imshow("lines_edges", lines_edges)
         return lines_edges
+    def control_device(self,img):
+        off_set_height = int(int(self.height/2)/2)
+        point_start = (0,int(self.height/2) + off_set_height)
+        point_end = (self.width,int(self.height/2) + off_set_height)
+        color = (255,255,255)
+        thickness = 7
+        img = cv2.line(img,point_start,point_end,color,thickness)
+        cv2.imshow("control_device",img)
     def process(self,img):
         colorSelection = Lane.colorSelection(self, img)
         regionMasking = Lane.regionMasking(self,colorSelection)
         cannyEdgeDetection = Lane.cannyEdgeDetection(self,regionMasking)
         houghTransform = Lane.houghTransform(self,cannyEdgeDetection,img)
+        Lane.control_device(self,houghTransform)
+
+def warper(img, src, dst):
+
+    # Compute and apply perpective transform
+    img_size = (img.shape[1], img.shape[0])
+    M = cv2.getPerspectiveTransform(src, dst)
+    warped = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_NEAREST)  # keep same size as input image
+
+    return warped
 if __name__ == "__main__":
     try:
         """
@@ -162,13 +180,11 @@ if __name__ == "__main__":
             LaneD = Lane()
             LaneD.process(imgage)
             
-            
-            
             #save image
             # image_name = "./img/img_{}.jpg".format(count)
-            image_name = "E://WORKPACE//XE_TU_HANH//labelMe//img//img_{}.jpg".format(count)
-            count += 1
-            cv2.imwrite(image_name, imgage)
+            # image_name = "E://WORKPACE//XE_TU_HANH//labelme//image//img_{}.jpg".format(count)
+            # count += 1
+            # cv2.imwrite(image_name, imgage)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         
