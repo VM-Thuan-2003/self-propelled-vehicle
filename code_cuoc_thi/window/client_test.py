@@ -14,7 +14,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 port = 54321
 
 # connect to the server on local computer 
-s.connect(('127.0.0.1', port)) 
+s.connect(('127.0.0.1', port))
 
 # count = 0
 angle = 10
@@ -69,6 +69,7 @@ class Lane:
         lane = cv2.bitwise_and(img, img, mask=mask)
         return cv2.cvtColor(lane,cv2.COLOR_BGR2GRAY)
     def contourImg(self,img):
+        cv2.imshow("iiiiii",img)
         thresh = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         area=[]
@@ -92,7 +93,7 @@ class Lane:
                     | (img[:,:,1] < rgb_threshold[1]) \
                     | (img[:,:,2] < rgb_threshold[2])
         color_select[thresholds] = [0,0,0]
-        # cv2.imshow("colorSelection", color_select)
+        cv2.imshow("colorSelection", color_select)
         return color_select
     def regionMasking(self, img):
         addYSize = 30
@@ -100,7 +101,7 @@ class Lane:
         mask = np.zeros_like(img)
         cv2.rectangle(mask, rectangle_coordinates[0], rectangle_coordinates[1], (255, 255, 255), thickness=cv2.FILLED)
         result = cv2.bitwise_and(img, mask)
-        # cv2.imshow("regionMasking",result)
+        cv2.imshow("regionMasking",result)
         return result
     def  GaussianBlur(self,img):
         Gray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
@@ -112,14 +113,14 @@ class Lane:
         high_threshold = 255
         GaussianBlur = Lane.GaussianBlur(self, img)
         cannyEdgeDetection = cv2.Canny(GaussianBlur, low_threshold, high_threshold)
-        # cv2.imshow("cannyEdgeDetection",cannyEdgeDetection)
+        cv2.imshow("cannyEdgeDetection",cannyEdgeDetection)
         return cannyEdgeDetection
     def houghTransform(self, cannyEdgeDetection):
         _img_bgr = np.copy(Lane.scaleImg(self, self.img))
-        rho = 1 # distance resolution in pixels of the Hough grid
-        theta = np.pi/180 # angular resolution in radians of the Hough grid
-        threshold = 20     # minimum number of votes (intersections in Hough grid cell)
-        min_line_length = 4 #minimum number of pixels making up a line
+        rho = 1              # distance resolution in pixels of the Hough grid
+        theta = np.pi/180    # angular resolution in radians of the Hough grid
+        threshold = 20       # minimum number of votes (intersections in Hough grid cell)
+        min_line_length = 4  # minimum number of pixels making up a line
         max_line_gap = 50    # maximum gap in pixels between connectable line segments
         lineP = cv2.HoughLinesP(cannyEdgeDetection, rho, theta, threshold, np.array([]),
                                     min_line_length, max_line_gap)
@@ -161,7 +162,7 @@ class Lane:
         p = 20   #20
         i = 11   #11
         d = 1    #1
-        peed=300
+        peed=150
         if(arrMax-arrMin > d_set):
             if(angle1 > 0):
                 if(angle1 < mm_max):
