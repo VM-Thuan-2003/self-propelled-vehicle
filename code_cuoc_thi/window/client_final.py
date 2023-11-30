@@ -99,13 +99,13 @@ class Lane:
         cannyEdgeDetection = cv2.Canny(GaussianBlur, low_threshold, high_threshold)
         return cannyEdgeDetection
     def grayCTbinImg(self,img):
-        lower_green = np.array([110,0,0]).astype("uint8")
+        lower_green = np.array([95,0,0]).astype("uint8")
         upper_green = np.array([255,255,255]).astype("uint8")
 
         mask = cv2.inRange(img,lower_green,upper_green)
         lane = cv2.bitwise_and(img, img, mask=mask)
         return cv2.cvtColor(lane,cv2.COLOR_BGR2GRAY)
-    def preNoneCenter(self,img):
+    def preNoneCenter(self,img,imgOrigin):
         # dis = 100
         # addXSize_1 = -dis
         # addXSize_2 = -addXSize_1
@@ -124,35 +124,48 @@ class Lane:
         # cv2.fillPoly(mask, [triangle_points], color=(0, 0, 0))
         # cv2.imshow("iiiiii_mask",mask)
         # result = cv2.bitwise_and(img, mask)
+        cv2.imshow("img",img)
+        cv2.imshow("imgOrigin",imgOrigin)
         
-        edges = cv2.Canny(img, 50, 150)
-        # Tìm đường biên trong hình ảnh
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Tìm cạnh ở bên trái và bên phải
-        left_edges = []
-        right_edges = []
-
-        for contour in contours:
-            # Xác định tọa độ của hình chữ nhật bao quanh đường biên
-            x, y, w, h = cv2.boundingRect(contour)
-
-            # Chia đường biên thành hai phần, xác định xem nó thuộc bên trái hay bên phải
-            mid_x = x + w // 2
-
-            if mid_x < self.width // 2:
-                left_edges.append(contour)
-            else:
-                right_edges.append(contour)
-
-        # Vẽ cạnh bên trái và bên phải lên hình ảnh gốc
-        image_with_edges = cv2.drawContours(img.copy(), left_edges, -1, (255, 0, 0), 2)
-        image_with_edges = cv2.drawContours(image_with_edges, right_edges, -1, (0, 0, 255), 2)
-        cv2.imshow('Edges on Left and Right', image_with_edges)
-        return img
-    def contourImg(self,img):
-        img = Lane.preNoneCenter(self,img)
-        cv2.imshow("iiiiii",img)
+        contours_1, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        largest_contour_1 = max(contours_1, key=cv2.contourArea)
+        mask_1 = np.zeros_like(img)
+        cv2.drawContours(mask_1, [largest_contour_1], 0, (255), thickness=cv2.FILLED)
+        result_1 = np.ones_like(img) * 255
+        result_1 = cv2.bitwise_and(result_1, result_1, mask=mask_1)
+        _, binary_thresh_1 = cv2.threshold(result_1, 220, 255, cv2.THRESH_BINARY_INV)
+        result_1 = cv2.bitwise_and(img, img, mask=binary_thresh_1)
+        cv2.imshow("result_1",result_1)
+        
+        contours, _ = cv2.findContours(imgOrigin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        largest_contour = max(contours, key=cv2.contourArea)
+        mask = np.zeros_like(imgOrigin)
+        cv2.drawContours(mask, [largest_contour], 0, (255), thickness=cv2.FILLED)
+        result = np.ones_like(imgOrigin) * 255
+        result = cv2.bitwise_and(result, result, mask=mask)
+        cv2.imshow("result",result)
+        
+        #  old id 220
+        _, binary_thresh = cv2.threshold(result, 220, 255, cv2.THRESH_BINARY_INV)
+        cv2.imshow("mask111",binary_thresh)
+        
+        contours_2, _ = cv2.findContours(binary_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        largest_contour_2 = max(contours_2, key=cv2.contourArea)
+        mask_2 = np.zeros_like(binary_thresh)
+        cv2.drawContours(mask_2, [largest_contour_2], 0, (255), thickness=cv2.FILLED)
+        result_2 = np.ones_like(binary_thresh) * 255
+        result_2 = cv2.bitwise_and(result_2, result_2, mask=mask_2)
+        _, binary_thresh_2 = cv2.threshold(result_2, 220, 255, cv2.THRESH_BINARY_INV)
+        result_2 = cv2.bitwise_and(binary_thresh, binary_thresh, mask=binary_thresh_2)
+        _, binary_thresh_3 = cv2.threshold(result_2, 220, 255, cv2.THRESH_BINARY_INV)
+        cv2.imshow("result_2",binary_thresh_3)
+        
+        return result
+        # return img
+    def contourImg(self,img,imgOrigin):
+        # img1 = Lane.preNoneCenter(self,img,imgOrigin)
+        # cv2.imshow("iiiiii",img1)
+        # cv2.imshow("qqqqqq",imgOrigin)
         thresh = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         area=[]
@@ -210,9 +223,9 @@ class Lane:
         cv2.line(img, (center,kc_set), (int(img.shape[1]/2),img.shape[0]), (0,255,0),(5))
         cv2.imshow("controlDevice",img)
         print("arrMax", arrMax, "arrMin", arrMin, "center", center,"sendBack_angle", sendBack_angle, "sendBack_Speed", sendBack_Speed)
-        peed=500
-        p = 17
-        i = 11
+        peed=1000
+        p = 1
+        i = 1
         d = 1
         mm_max = 500
         mm_min = -500
@@ -236,13 +249,13 @@ class Lane:
         binaryImg = Lane.binaryImg(self, grayImg)
         cannyEdgeDetection = Lane.cannyEdgeDetection(self,binaryImg)
         houghTransform = Lane.houghTransform(self,cannyEdgeDetection)
-        contourImg = Lane.contourImg(self,binaryImg)
+        contourImg = Lane.contourImg(self,binaryImg,grayCTbinImg)
         combineImg = Lane.combineImg(self, houghTransform, contourImg)
         regionMasking = Lane.regionMasking(self,combineImg)
         Lane.controlDevice(self,regionMasking)
         
-        cv2.imshow("houghTransform",houghTransform)
-        cv2.imshow("contourImg",contourImg)
+        # cv2.imshow("houghTransform",houghTransform)
+        # cv2.imshow("contourImg",contourImg)
         # cv2.imshow("combineImg",combineImg)
 if __name__ == "__main__":
     try:
